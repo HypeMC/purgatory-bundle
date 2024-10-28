@@ -37,6 +37,10 @@ post_details:
 post_details:
     class: App\Entity\Post
     if: 'obj.upvotes > 3000'
+    if: !expr FQCN
+    if: !expr
+        class: FQCN
+        args: []
 
 # Adding multiple purge subscriptions
 post_details:

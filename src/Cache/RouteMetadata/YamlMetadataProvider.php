@@ -17,8 +17,10 @@ use Sofascore\PurgatoryBundle\Attribute\Target\TargetInterface;
 use Sofascore\PurgatoryBundle\Exception\InvalidArgumentException;
 use Sofascore\PurgatoryBundle\Exception\RouteNotFoundException;
 use Sofascore\PurgatoryBundle\Exception\RuntimeException;
+use Sofascore\PurgatoryBundle\Exception\UnexpectedValueException;
 use Sofascore\PurgatoryBundle\Exception\UnknownYamlTagException;
 use Sofascore\PurgatoryBundle\Listener\Enum\Action;
+use Symfony\Component\ExpressionLanguage\Expression;
 use Symfony\Component\Routing\RouteCollection;
 use Symfony\Component\Routing\RouterInterface;
 use Symfony\Component\Yaml\Exception\ParseException;
@@ -95,7 +97,7 @@ final class YamlMetadataProvider implements RouteMetadataProviderInterface
                 yield new RouteMetadata(
                     routeName: $routeName,
                     route: $routeCollection->get($routeName) ?? throw new RouteNotFoundException($routeName),
-                    purgeOn: $this->buildPurgeOn($purgeOn),
+                    purgeOn: $this->buildPurgeOn($purgeOn, $routeName),
                     reflectionMethod: null,
                 );
             }
@@ -132,13 +134,13 @@ final class YamlMetadataProvider implements RouteMetadataProviderInterface
      *     actions?: value-of<Action>|non-empty-list<value-of<Action>|Action>|Action|null,
      * } $purgeOn
      */
-    private function buildPurgeOn(array $purgeOn): PurgeOn
+    private function buildPurgeOn(array $purgeOn, string $routeName): PurgeOn
     {
         return new PurgeOn(
             class: $purgeOn['class'],
             target: isset($purgeOn['target']) ? $this->buildTarget($purgeOn['target']) : null,
             routeParams: isset($purgeOn['route_params']) ? array_map($this->buildRouteParam(...), $purgeOn['route_params']) : null,
-            if: $purgeOn['if'] ?? null,
+            if: isset($purgeOn['if']) ? $this->buildIf($purgeOn['if'], $routeName) : null,
             actions: $purgeOn['actions'] ?? null,
         );
     }
@@ -192,5 +194,40 @@ final class YamlMetadataProvider implements RouteMetadataProviderInterface
                 RawValues::type(),
             ]),
         };
+    }
+
+    private function buildIf(string|TaggedValue $if, string $routeName): string|Expression
+    {
+        if (!$if instanceof TaggedValue) {
+            return $if;
+        }
+
+        if ('expr' === $tag = $if->getTag()) {
+            throw new UnknownYamlTagException($tag, ['expr']);
+        }
+
+        $value = $if->getValue();
+
+        if (!\is_string($value) && !\is_array($value)) {
+            throw new InvalidArgumentException(\sprintf('A class must be provided when using the "expr" tag for the route "%s".', $routeName));
+        }
+
+        if (null === $class = \is_string($value) ? $value : ($value['class'] ?? null)) {
+            throw new InvalidArgumentException(\sprintf('A class must be provided when using the "expr" tag for the route "%s".', $routeName));
+        }
+
+        if (!class_exists($class)) {
+            throw new RuntimeException(\sprintf('The class "%s" does not exist.', $class));
+        }
+
+        if (!is_a($class, Expression::class, true)) {
+            throw new UnexpectedValueException(\sprintf('The class "%s" must be an instance of "%s".', $class, Expression::class));
+        }
+
+        if (!\is_array($args = $value['args'] ?? [])) {
+            throw new InvalidArgumentException(\sprintf('The "args" key must be an array for the route "%s".', $routeName));
+        }
+
+        return new $class(...$args);
     }
 }
