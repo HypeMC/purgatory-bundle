@@ -74,7 +74,7 @@ final class VarnishPurger implements PurgerInterface
         }
 
         return [
-            $parsedUrl['host'].(isset($parsedUrl['port']) ? ':'.$parsedUrl['port'] : ''),
+            $parsedUrl['host'].(isset($parsedUrl['port']) ? ':'.((string) $parsedUrl['port']) : ''),
             ($parsedUrl['path'] ?? '/').(isset($parsedUrl['query']) ? '?'.$parsedUrl['query'] : ''),
         ];
     }
