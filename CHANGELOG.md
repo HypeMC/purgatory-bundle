@@ -11,6 +11,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Add the `ForResponseGroups` target which resolves properties from the serialization groups of the `#[Serialize]`
   attribute by @HypeMC in https://github.com/sofascore/purgatory-bundle/pull/154
+- Add the `entity_change_purging` option and a PHPUnit extension with the `#[WithEntityChangePurging]` attribute to
+  enable purging on entity changes only for specific tests by @HypeMC
+  in https://github.com/sofascore/purgatory-bundle/pull/155
 
 ## [1.5.0] - 2026-08-25
 

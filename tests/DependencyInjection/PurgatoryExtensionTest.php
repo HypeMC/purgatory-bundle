@@ -340,6 +340,23 @@ final class PurgatoryExtensionTest extends TestCase
         self::assertSame('/^_profiler/', $ignoredPatterns[0]);
     }
 
+    #[TestWith([true])]
+    #[TestWith([false])]
+    public function testEntityChangePurgingIsSet(bool $enabled): void
+    {
+        $container = new ContainerBuilder();
+        $container->setParameter('kernel.project_dir', __DIR__);
+
+        $extension = new PurgatoryExtension();
+        $extension->load([
+            'purgatory' => [
+                'entity_change_purging' => $enabled,
+            ],
+        ], $container);
+
+        self::assertSame($enabled, $container->getDefinition('sofascore.purgatory.entity_change_purge_switcher')->getArgument(0));
+    }
+
     #[TestWith([[], [[]]])]
     #[TestWith([['doctrine_middleware' => ['priority' => 10]], [['priority' => 10]]])]
     public function testDoctrineMiddlewareTagIsSet(array $middlewarePriority, array $expectedTag): void

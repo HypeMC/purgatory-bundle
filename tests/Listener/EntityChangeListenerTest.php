@@ -5,9 +5,14 @@ declare(strict_types=1);
 namespace Sofascore\PurgatoryBundle\Tests\Listener;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Event\PostPersistEventArgs;
+use Doctrine\ORM\UnitOfWork;
 use PHPUnit\Framework\Attributes\CoversClass;
 use Sofascore\PurgatoryBundle\Listener\EntityChangeListener;
+use Sofascore\PurgatoryBundle\Listener\EntityChangePurgeSwitcher;
 use Sofascore\PurgatoryBundle\Purger\PurgerInterface;
+use Sofascore\PurgatoryBundle\RouteProvider\PurgeRoute;
+use Sofascore\PurgatoryBundle\RouteProvider\RouteProviderInterface;
 use Sofascore\PurgatoryBundle\Test\InteractsWithPurgatory;
 use Sofascore\PurgatoryBundle\Tests\Functional\AbstractKernelTestCase;
 use Sofascore\PurgatoryBundle\Tests\Functional\EntityChangeListener\Entity\Dummy;
@@ -84,6 +89,13 @@ final class EntityChangeListenerTest extends AbstractKernelTestCase
         self::assertUrlIsPurged('http://example.test/foo');
     }
 
+    protected function tearDown(): void
+    {
+        EntityChangePurgeSwitcher::reset();
+
+        parent::tearDown();
+    }
+
     public function testProcessWithNoPurgeRequests(): void
     {
         $urlGenerator = self::createStub(UrlGeneratorInterface::class);
@@ -92,6 +104,56 @@ final class EntityChangeListenerTest extends AbstractKernelTestCase
 
         $entityChangeListener = new EntityChangeListener([], $urlGenerator, $purger);
 
+        $entityChangeListener->process();
+    }
+
+    public function testNothingIsQueuedWhenPurgingIsDisabled(): void
+    {
+        $routeProvider = $this->createMock(RouteProviderInterface::class);
+        $routeProvider->expects(self::never())->method('supports');
+        $purger = $this->createMock(PurgerInterface::class);
+        $purger->expects(self::never())->method('purge');
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects(self::never())->method('getUnitOfWork');
+
+        $entityChangeListener = new EntityChangeListener(
+            [$routeProvider],
+            self::createStub(UrlGeneratorInterface::class),
+            $purger,
+            new EntityChangePurgeSwitcher(false),
+        );
+
+        $entityChangeListener->postPersist(new PostPersistEventArgs(new \stdClass(), $entityManager));
+        $entityChangeListener->process();
+    }
+
+    public function testQueuedPurgeRequestsAreDroppedWhenPurgingIsDisabledBeforeProcessing(): void
+    {
+        $routeProvider = self::createStub(RouteProviderInterface::class);
+        $routeProvider->method('supports')->willReturn(true);
+        $routeProvider->method('provideRoutesFor')->willReturn([new PurgeRoute('route_foo', [])]);
+        $urlGenerator = self::createStub(UrlGeneratorInterface::class);
+        $urlGenerator->method('generate')->willReturn('http://localhost/foo');
+        $purger = $this->createMock(PurgerInterface::class);
+        $purger->expects(self::never())->method('purge');
+        $unitOfWork = self::createStub(UnitOfWork::class);
+        $unitOfWork->method('getEntityChangeSet')->willReturn([]);
+        $entityManager = self::createStub(EntityManagerInterface::class);
+        $entityManager->method('getUnitOfWork')->willReturn($unitOfWork);
+
+        $entityChangeListener = new EntityChangeListener(
+            [$routeProvider],
+            $urlGenerator,
+            $purger,
+            new EntityChangePurgeSwitcher(true),
+        );
+
+        $entityChangeListener->postPersist(new PostPersistEventArgs(new \stdClass(), $entityManager));
+
+        EntityChangePurgeSwitcher::disable();
+        $entityChangeListener->process();
+
+        EntityChangePurgeSwitcher::reset();
         $entityChangeListener->process();
     }
 }

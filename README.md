@@ -57,6 +57,8 @@ If your project doesn't use [Symfony Flex](https://github.com/symfony/flex), con
             # Examples:
             # - /^_profiler/
             # - /^_wdt/
+        # Whether entity changes trigger purge requests, can be disabled in the test environment and enabled per test using the PHPUnit extension.
+        entity_change_purging: true
         doctrine_middleware:
             enabled:              true
 
