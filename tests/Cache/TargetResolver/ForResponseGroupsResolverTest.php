@@ -127,4 +127,19 @@ final class ForResponseGroupsResolverTest extends TestCase
 
         $resolver->resolve($target, $routeMetadata);
     }
+
+    #[RequiresMethod(Serialize::class, '__construct')]
+    #[TestWith(['singleGroup', true])]
+    #[TestWith(['multipleGroups', true])]
+    #[TestWith(['withoutSerialize', false])]
+    #[TestWith(['withoutGroups', false])]
+    #[TestWith(['emptyGroups', false])]
+    #[TestWith(['emptyStringGroup', false])]
+    #[TestWith(['nonStringGroup', false])]
+    #[TestWith(['nonStringGroups', false])]
+    #[TestWith(['nonListGroups', false])]
+    public function testHasResponseGroups(string $method, bool $expected): void
+    {
+        self::assertSame($expected, ForResponseGroupsResolver::hasResponseGroups(new \ReflectionMethod(SerializeController::class, $method)));
+    }
 }

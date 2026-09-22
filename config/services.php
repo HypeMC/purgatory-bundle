@@ -81,6 +81,7 @@ return static function (ContainerConfigurator $container) {
                 service('doctrine'),
                 tagged_locator('purgatory.target_resolver', indexAttribute: 'for'),
                 service('sofascore.purgatory.expression_language')->nullOnInvalid(),
+                abstract_arg('Whether to auto-detect response groups'),
             ])
 
         ->set('sofascore.purgatory.subscription_resolver.property', PropertyResolver::class)

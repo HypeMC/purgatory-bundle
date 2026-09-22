@@ -103,6 +103,12 @@ final class ConfigurationTest extends AbstractKernelTestCase
             haystack: self::$configuration->get(Post::class.'::text'),
         );
         self::assertFalse(self::$configuration->has(Post::class.'::views'));
+
+        // without "auto_detect_response_groups" a "#[PurgeOn]" without a target subscribes to all properties
+        self::assertSubscriptionExists(
+            key: Post::class,
+            subscription: ['routeName' => 'post_summary', 'routeParams' => $routeParams],
+        );
     }
 
     private static function assertSubscriptionExists(string $key, array $subscription): void

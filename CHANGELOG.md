@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Add the `auto_detect_response_groups` option to use the serialization groups of the `#[Serialize]` attribute for
+  `#[PurgeOn]` attributes without an explicit target by @HypeMC
+
 ## [1.6.0] - 2026-09-21
 
 ### Added
@@ -83,6 +90,7 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Initial release
 
+[Unreleased]: https://github.com/sofascore/purgatory-bundle/compare/v1.6.0...1.x
 [1.6.0]: https://github.com/sofascore/purgatory-bundle/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/sofascore/purgatory-bundle/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/sofascore/purgatory-bundle/compare/v1.3.2...v1.4.0

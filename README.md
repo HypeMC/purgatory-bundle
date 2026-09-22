@@ -57,6 +57,9 @@ If your project doesn't use [Symfony Flex](https://github.com/symfony/flex), con
             # Examples:
             # - /^_profiler/
             # - /^_wdt/
+
+        # Use the serialization groups of the "#[Serialize]" attribute as the target of "#[PurgeOn]" attributes without an explicit target.
+        auto_detect_response_groups: false
         doctrine_middleware:
             enabled:              true
 

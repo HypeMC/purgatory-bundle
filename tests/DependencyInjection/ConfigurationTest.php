@@ -27,6 +27,7 @@ final class ConfigurationTest extends TestCase
         self::assertSame([
             'mapping_paths' => [],
             'route_ignore_patterns' => [],
+            'auto_detect_response_groups' => false,
             'doctrine_middleware' => [
                 'enabled' => true,
                 'priority' => null,
@@ -151,6 +152,7 @@ final class ConfigurationTest extends TestCase
             'all.xml',
             [
                 'profiler_integration' => false,
+                'auto_detect_response_groups' => true,
                 'doctrine_middleware' => [
                     'priority' => 5,
                     'enabled' => true,
@@ -199,6 +201,7 @@ final class ConfigurationTest extends TestCase
                 ],
                 'mapping_paths' => [],
                 'route_ignore_patterns' => [],
+                'auto_detect_response_groups' => false,
                 'purger' => [
                     'name' => null,
                     'hosts' => [],

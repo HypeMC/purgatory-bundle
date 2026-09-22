@@ -9,12 +9,14 @@ use Doctrine\ORM\Mapping\ClassMetadata;
 use Doctrine\Persistence\ManagerRegistry;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\RequiresMethod;
 use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Sofascore\PurgatoryBundle\Attribute\PurgeOn;
 use Sofascore\PurgatoryBundle\Attribute\RouteParamValue\PropertyValues;
 use Sofascore\PurgatoryBundle\Attribute\Target\ForProperties;
+use Sofascore\PurgatoryBundle\Attribute\Target\ForResponseGroups;
 use Sofascore\PurgatoryBundle\Cache\PropertyResolver\SubscriptionResolverInterface;
 use Sofascore\PurgatoryBundle\Cache\RouteMetadata\RouteMetadata;
 use Sofascore\PurgatoryBundle\Cache\RouteMetadata\RouteMetadataProviderInterface;
@@ -28,6 +30,7 @@ use Sofascore\PurgatoryBundle\Tests\Cache\Subscription\Fixtures\DummyTarget;
 use Symfony\Component\ExpressionLanguage\ExpressionFunction;
 use Symfony\Component\ExpressionLanguage\ExpressionFunctionProviderInterface;
 use Symfony\Component\ExpressionLanguage\ExpressionLanguage;
+use Symfony\Component\HttpKernel\Attribute\Serialize;
 use Symfony\Component\Routing\Route;
 
 #[CoversClass(PurgeSubscriptionProvider::class)]
@@ -544,5 +547,124 @@ final class PurgeSubscriptionProviderTest extends TestCase
         $this->expectExceptionMessage($expectedMessage);
 
         [...$purgeSubscriptionProvider->provide()];
+    }
+
+    #[RequiresMethod(Serialize::class, '__construct')]
+    public function testResponseGroupsAreDetectedWhenEnabled(): void
+    {
+        $routeMetadata = new RouteMetadata(
+            routeName: 'route_foo',
+            route: new Route('/foo'),
+            purgeOn: new PurgeOn(class: 'FooEntity'),
+            reflectionMethod: new \ReflectionMethod(DummyController::class, 'serializeWithGroupsAction'),
+        );
+
+        $expectedSubscription = new PurgeSubscription(
+            class: 'FooEntity',
+            property: 'property1',
+            routeParams: [],
+            routeName: 'route_foo',
+            route: $routeMetadata->route,
+            actions: null,
+            if: null,
+        );
+
+        $subscriptionResolver = self::createStub(SubscriptionResolverInterface::class);
+        $subscriptionResolver->method('resolveSubscription')
+            ->willReturnCallback(static function () use ($expectedSubscription) {
+                yield $expectedSubscription;
+
+                return true;
+            });
+
+        $routeMetadataProvider = self::createStub(RouteMetadataProviderInterface::class);
+        $routeMetadataProvider->method('provide')
+            ->willReturnCallback(static function () use ($routeMetadata) {
+                yield $routeMetadata;
+            });
+
+        $entityManager = self::createStub(EntityManagerInterface::class);
+        $entityManager->method('getClassMetadata')->willReturn(self::createStub(ClassMetadata::class));
+
+        $managerRegistry = self::createStub(ManagerRegistry::class);
+        $managerRegistry->method('getManagerForClass')->willReturn($entityManager);
+
+        $targetResolver = $this->createMock(TargetResolverInterface::class);
+        $targetResolver->expects(self::once())
+            ->method('resolve')
+            ->with(self::isInstanceOf(ForResponseGroups::class), $routeMetadata)
+            ->willReturn(['property1']);
+
+        $targetResolverLocator = $this->createMock(ContainerInterface::class);
+        $targetResolverLocator->expects(self::once())
+            ->method('get')
+            ->with(ForResponseGroups::class)
+            ->willReturn($targetResolver);
+
+        $purgeSubscriptionProvider = new PurgeSubscriptionProvider(
+            subscriptionResolvers: [$subscriptionResolver],
+            routeMetadataProviders: [$routeMetadataProvider],
+            managerRegistry: $managerRegistry,
+            targetResolverLocator: $targetResolverLocator,
+            expressionLanguage: null,
+            autoDetectResponseGroups: true,
+        );
+
+        self::assertEquals([$expectedSubscription], [...$purgeSubscriptionProvider->provide()]);
+    }
+
+    #[TestWith([null, true])]
+    #[TestWith(['barAction', true])]
+    public function testResponseGroupsAreNotDetectedWithoutSerializeAttribute(?string $method, bool $autoDetectResponseGroups): void
+    {
+        $this->assertResponseGroupsAreNotDetected($method, $autoDetectResponseGroups);
+    }
+
+    #[RequiresMethod(Serialize::class, '__construct')]
+    #[TestWith(['serializeWithoutGroupsAction', true])]
+    #[TestWith(['serializeWithGroupsAction', false])]
+    public function testResponseGroupsAreNotDetectedWithoutGroupsOrWhenDisabled(string $method, bool $autoDetectResponseGroups): void
+    {
+        $this->assertResponseGroupsAreNotDetected($method, $autoDetectResponseGroups);
+    }
+
+    private function assertResponseGroupsAreNotDetected(?string $method, bool $autoDetectResponseGroups): void
+    {
+        $routeMetadata = new RouteMetadata(
+            routeName: 'route_foo',
+            route: new Route('/foo'),
+            purgeOn: new PurgeOn(class: 'FooEntity'),
+            reflectionMethod: null !== $method ? new \ReflectionMethod(DummyController::class, $method) : null,
+        );
+
+        $routeMetadataProvider = self::createStub(RouteMetadataProviderInterface::class);
+        $routeMetadataProvider->method('provide')
+            ->willReturnCallback(static function () use ($routeMetadata) {
+                yield $routeMetadata;
+            });
+
+        $targetResolverLocator = $this->createMock(ContainerInterface::class);
+        $targetResolverLocator->expects(self::never())->method('get');
+
+        $purgeSubscriptionProvider = new PurgeSubscriptionProvider(
+            subscriptionResolvers: [],
+            routeMetadataProviders: [$routeMetadataProvider],
+            managerRegistry: self::createStub(ManagerRegistry::class),
+            targetResolverLocator: $targetResolverLocator,
+            expressionLanguage: null,
+            autoDetectResponseGroups: $autoDetectResponseGroups,
+        );
+
+        self::assertEquals([
+            new PurgeSubscription(
+                class: 'FooEntity',
+                property: null,
+                routeParams: [],
+                routeName: 'route_foo',
+                route: $routeMetadata->route,
+                actions: null,
+                if: null,
+            ),
+        ], [...$purgeSubscriptionProvider->provide()]);
     }
 }

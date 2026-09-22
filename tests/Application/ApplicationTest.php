@@ -887,6 +887,7 @@ final class ApplicationTest extends AbstractKernelTestCase
     /**
      * @see PostController::detailsAction
      * @see PostController::fullDetailsAction
+     * @see PostController::summaryAction
      */
     #[RequiresMethod(Serialize::class, '__construct')]
     public function testPurgeOnWithResponseGroupsTarget(): void
@@ -900,22 +901,30 @@ final class ApplicationTest extends AbstractKernelTestCase
 
         $detailsUrl = '/post/'.$post->id;
         $fullDetailsUrl = '/post/'.$post->id.'/full';
+        $summaryUrl = '/post/'.$post->id.'/summary';
 
         self::assertUrlIsPurged($detailsUrl);
         self::assertUrlIsPurged($fullDetailsUrl);
+        self::assertUrlIsPurged($summaryUrl);
 
         self::clearPurger();
 
         $post->views = 10;
         $this->entityManager->flush();
 
-        self::assertNoUrlsArePurged();
+        self::assertUrlIsNotPurged($detailsUrl);
+        self::assertUrlIsNotPurged($fullDetailsUrl);
+        // without "auto_detect_response_groups" a "#[PurgeOn]" without a target subscribes to all properties
+        self::assertUrlIsPurged($summaryUrl);
+
+        self::clearPurger();
 
         $post->text = 'New text';
         $this->entityManager->flush();
 
         self::assertUrlIsNotPurged($detailsUrl);
         self::assertUrlIsPurged($fullDetailsUrl);
+        self::assertUrlIsPurged($summaryUrl);
 
         self::clearPurger();
 
@@ -924,5 +933,6 @@ final class ApplicationTest extends AbstractKernelTestCase
 
         self::assertUrlIsPurged($detailsUrl);
         self::assertUrlIsPurged($fullDetailsUrl);
+        self::assertUrlIsPurged($summaryUrl);
     }
 }

@@ -8,10 +8,12 @@ use Doctrine\Persistence\ManagerRegistry;
 use Psr\Container\ContainerInterface;
 use Sofascore\PurgatoryBundle\Attribute\RouteParamValue\PropertyValues;
 use Sofascore\PurgatoryBundle\Attribute\RouteParamValue\ValuesInterface;
+use Sofascore\PurgatoryBundle\Attribute\Target\ForResponseGroups;
 use Sofascore\PurgatoryBundle\Attribute\Target\TargetInterface;
 use Sofascore\PurgatoryBundle\Cache\PropertyResolver\SubscriptionResolverInterface;
 use Sofascore\PurgatoryBundle\Cache\RouteMetadata\RouteMetadata;
 use Sofascore\PurgatoryBundle\Cache\RouteMetadata\RouteMetadataProviderInterface;
+use Sofascore\PurgatoryBundle\Cache\TargetResolver\ForResponseGroupsResolver;
 use Sofascore\PurgatoryBundle\Cache\TargetResolver\TargetResolverInterface;
 use Sofascore\PurgatoryBundle\Exception\EntityMetadataNotFoundException;
 use Sofascore\PurgatoryBundle\Exception\InvalidIfExpressionException;
@@ -36,6 +38,7 @@ final class PurgeSubscriptionProvider implements PurgeSubscriptionProviderInterf
         private readonly ManagerRegistry $managerRegistry,
         private readonly ContainerInterface $targetResolverLocator,
         private readonly ?ExpressionLanguage $expressionLanguage,
+        private readonly bool $autoDetectResponseGroups = false,
     ) {
     }
 
@@ -77,7 +80,9 @@ final class PurgeSubscriptionProvider implements PurgeSubscriptionProviderInterf
                 $routeParams = $purgeOn->routeParams;
             }
 
-            if (null === $purgeOn->target) {
+            $target = $purgeOn->target ?? $this->detectTarget($routeMetadata);
+
+            if (null === $target) {
                 yield new PurgeSubscription(
                     class: $purgeOn->class,
                     property: null,
@@ -98,9 +103,9 @@ final class PurgeSubscriptionProvider implements PurgeSubscriptionProviderInterf
             }
 
             /** @var TargetResolverInterface<TargetInterface> $targetResolver */
-            $targetResolver = $this->targetResolverLocator->get($purgeOn->target::class);
+            $targetResolver = $this->targetResolverLocator->get($target::class);
 
-            foreach ($targetResolver->resolve($purgeOn->target, $routeMetadata) as $property) {
+            foreach ($targetResolver->resolve($target, $routeMetadata) as $property) {
                 $targetResolved = false;
 
                 foreach ($this->subscriptionResolvers as $resolver) {
@@ -114,6 +119,21 @@ final class PurgeSubscriptionProvider implements PurgeSubscriptionProviderInterf
                 }
             }
         }
+    }
+
+    /**
+     * Uses the serialization groups of the "#[Serialize]" attribute on the controller
+     * method as the target when enabled, otherwise all properties are subscribed to.
+     */
+    private function detectTarget(RouteMetadata $routeMetadata): ?TargetInterface
+    {
+        if (!$this->autoDetectResponseGroups || null === $routeMetadata->reflectionMethod) {
+            return null;
+        }
+
+        return ForResponseGroupsResolver::hasResponseGroups($routeMetadata->reflectionMethod)
+            ? new ForResponseGroups()
+            : null;
     }
 
     /**

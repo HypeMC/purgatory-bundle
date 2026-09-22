@@ -54,6 +54,20 @@ final class ForResponseGroupsResolver implements TargetResolverInterface
     }
 
     /**
+     * Whether the controller method has a "#[Serialize]" attribute with at least one serialization group.
+     *
+     * @internal
+     */
+    public static function hasResponseGroups(\ReflectionMethod $reflectionMethod): bool
+    {
+        if (null === $attribute = $reflectionMethod->getAttributes(Serialize::class)[0] ?? null) {
+            return false;
+        }
+
+        return self::isValidGroups($attribute->newInstance()->context['groups'] ?? null);
+    }
+
+    /**
      * @phpstan-assert-if-true non-empty-string|non-empty-list<non-empty-string> $groups
      */
     private static function isValidGroups(mixed $groups): bool

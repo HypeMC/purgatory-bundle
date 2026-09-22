@@ -340,6 +340,23 @@ final class PurgatoryExtensionTest extends TestCase
         self::assertSame('/^_profiler/', $ignoredPatterns[0]);
     }
 
+    #[TestWith([true])]
+    #[TestWith([false])]
+    public function testAutoDetectResponseGroupsIsSet(bool $enabled): void
+    {
+        $container = new ContainerBuilder();
+        $container->setParameter('kernel.project_dir', __DIR__);
+
+        $extension = new PurgatoryExtension();
+        $extension->load([
+            'purgatory' => [
+                'auto_detect_response_groups' => $enabled,
+            ],
+        ], $container);
+
+        self::assertSame($enabled, $container->getDefinition('sofascore.purgatory.purge_subscription_provider')->getArgument(5));
+    }
+
     #[TestWith([[], [[]]])]
     #[TestWith([['doctrine_middleware' => ['priority' => 10]], [['priority' => 10]]])]
     public function testDoctrineMiddlewareTagIsSet(array $middlewarePriority, array $expectedTag): void

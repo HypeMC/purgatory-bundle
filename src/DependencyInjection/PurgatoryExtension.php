@@ -132,6 +132,9 @@ final class PurgatoryExtension extends ConfigurableExtension implements PrependE
         $container->getDefinition('sofascore.purgatory.route_metadata_provider.attribute')
             ->setArgument(2, $mergedConfig['route_ignore_patterns']);
 
+        $container->getDefinition('sofascore.purgatory.purge_subscription_provider')
+            ->setArgument(5, $mergedConfig['auto_detect_response_groups']);
+
         /** @var array<DoctrineEvents::*, ?int> $doctrineEventListenerPriorities */
         $doctrineEventListenerPriorities = $mergedConfig['doctrine_event_listener_priorities'];
 

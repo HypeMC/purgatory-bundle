@@ -389,6 +389,19 @@ at least one serialization group, otherwise an exception is thrown during cache 
 the controller method, this target can only be used with the `#[PurgeOn]` attribute and is not available in the YAML
 configuration.
 
+To apply this automatically to every `#[PurgeOn]` attribute without an explicit target, enable the
+`auto_detect_response_groups` option. Whenever the controller method has a `#[Serialize]` attribute with at least one
+serialization group, those groups are used as the target instead of subscribing to all properties:
+
+```yaml
+# config/packages/purgatory.yaml
+purgatory:
+    auto_detect_response_groups: true
+```
+
+Routes whose controller method has no `#[Serialize]` attribute, or one without serialization groups, keep subscribing
+to all properties.
+
 ### Adding Conditional Logic with Expression Language
 
 [Symfony's ExpressionLanguage component](https://symfony.com/doc/current/components/expression_language.html) can be

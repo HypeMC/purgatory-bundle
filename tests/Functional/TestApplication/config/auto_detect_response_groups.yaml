@@ -1,0 +1,5 @@
+imports:
+    - { resource: ./app_config.yaml }
+
+purgatory:
+    auto_detect_response_groups: true

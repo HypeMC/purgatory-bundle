@@ -47,4 +47,17 @@ class PostController
     {
         return $post;
     }
+
+    #[Route('/{post_id}/summary', 'post_summary')]
+    #[AnnotationRoute('/{post_id}/summary', name: 'post_summary')]
+    #[PurgeOn(Post::class,
+        routeParams: [
+            'post_id' => 'id',
+        ],
+    )]
+    #[Serialize(context: ['groups' => 'common'])]
+    public function summaryAction(Post $post): Post
+    {
+        return $post;
+    }
 }
